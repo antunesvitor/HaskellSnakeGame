@@ -1,0 +1,2 @@
+* > Trocar a constResolution para um custom type com nome de width e height
+> Criar apropriadamente a constante thickness baseada na resolucao da tela 
