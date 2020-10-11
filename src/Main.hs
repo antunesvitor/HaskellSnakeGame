@@ -35,8 +35,8 @@ data Snake = Snake {
 } deriving Show
 
 data Resolution = Resolution {
-  height :: Int
-, width :: Int
+  width :: Int
+ , height :: Int
 }
 
 -- The Number of the pixels that will separate a block from another
@@ -44,8 +44,8 @@ constNodeDistance :: Int
 constNodeDistance = 1
 
 -- Constant that defines the number of pixels a snake block will have
-constSnakeBlockSize :: Int
-constSnakeBlockSize = 10
+constBlockSize :: Int
+constBlockSize = 10
 
 -- Constant that defines the snake color
 constSnakeColor :: Color
@@ -57,10 +57,10 @@ constWallColor = white
 
 -- The snake velocity is the node distance plus the product of the block size and the number of blocks each step will take
 constVelocity :: Int
-constVelocity = (1 * constSnakeBlockSize) + constNodeDistance
+constVelocity = (1 * constBlockSize)
 
 constResolution :: Resolution
-constResolution = Resolution 360 640
+constResolution = Resolution 640 360
 
 getScreenResolution :: (Int, Int)
 getScreenResolution  = (width constResolution, height constResolution)
@@ -75,18 +75,21 @@ initialState = pictures [
 
 walls :: Picture
 walls = pictures [
-    topWall, bottoomWall, leftWall, rightWall
+    topWall, bottomWall, leftWall, rightWall
   ]
   where
-    -- thickness = fromIntegral (snd constResolution `div` 10)
     screenWidth = fromIntegral (width constResolution)
-    screenHeight = fromIntegral (height constResolution - 2 * 10)
-    horizontalWall = rectangleSolid screenWidth 10
-    verticalWall = rectangleSolid 10 screenHeight
-    topWall = translate 0 (-235) $ color constWallColor $ horizontalWall
-    bottoomWall = translate 0 235 $ color constWallColor $ horizontalWall
-    leftWall = translate (-315) 0 $ color constWallColor $ verticalWall
-    rightWall = translate 315 0 $ color constWallColor $ verticalWall
+    screenHeight = fromIntegral (height constResolution)
+    horizontalWall = rectangleSolid screenWidth (fromIntegral constBlockSize)
+    verticalWall = rectangleSolid (fromIntegral constBlockSize) screenHeight
+    -- verticalOffset = fromIntegral $ (height constResolution - constBlockSize) `div` 2
+    verticalOffset = fromIntegral $ (height constResolution) `div` 2
+    horizontalOffset = fromIntegral $ (width constResolution) `div` 2
+    -- horizontalOffset = fromIntegral $ (width constResolution - constBlockSize) `div` 2
+    topWall = translate 0 verticalOffset $ color constWallColor $ horizontalWall
+    bottomWall = translate 0 (-verticalOffset) $ color constWallColor $ horizontalWall
+    leftWall = translate (-horizontalOffset) 0 $ color constWallColor $ verticalWall
+    rightWall = translate horizontalOffset 0 $ color constWallColor $ verticalWall
 
 renderGame :: Snake -> Picture
 renderGame snake = pictures [
@@ -99,10 +102,11 @@ renderSnake snake = pictures $ (renderNode $ snakeHead snake):(renderedTail)
     renderedTail = map renderNode $ snakeTail snake
 
 renderNode :: Node -> Picture
-renderNode (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSnakeColor $ rectangleSolid 10 10
+renderNode (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSnakeColor $ rectangleSolid floatBlockSize floatBlockSize
   where
     intNodeX = fromIntegral nodeX
     intNodeY = fromIntegral nodeY
+    floatBlockSize = fromIntegral constBlockSize
 
 startingSnake :: Snake
 startingSnake = Snake { snakeHead = startingHead, snakeTail = startingTail startingHead, velocity = constVelocity }
@@ -121,10 +125,10 @@ startingTail' startingHead remaining (n:ns) = startingTail' startingHead (remain
 
 addNode :: Node -> Node
 addNode (Node nodeX nodeY direction')
-  | direction' == topDir = Node { x = nodeX, y = nodeY - 11, direction = direction' }
-  | direction' == rightDir = Node { x = nodeX + 11, y = nodeY, direction = direction' }
-  | direction' == bottomDir = Node { x = nodeX, y = nodeY + 11, direction = direction' }
-  | otherwise = Node { x = nodeX - 11, y = nodeY, direction = direction' }
+  | direction' == topDir = Node { x = nodeX, y = nodeY - 10, direction = direction' }
+  | direction' == rightDir = Node { x = nodeX + 10, y = nodeY, direction = direction' }
+  | direction' == bottomDir = Node { x = nodeX, y = nodeY + 10, direction = direction' }
+  | otherwise = Node { x = nodeX - 10, y = nodeY, direction = direction' }
 
 -- Given a snake model and a direction move snake one or more blocks in the direction
 moveSnake :: Snake -> Direction -> Snake
@@ -149,6 +153,19 @@ evalDirection new current
   | new == noDir = current
   | otherwise = new
 
+oppositeDirection :: Direction -> Direction
+oppositeDirection dir 
+  | dir == topDir = bottomDir
+  | dir == rightDir = leftDir
+  | dir == bottomDir = topDir
+  | dir == leftDir = rightDir
+  | otherwise = noDir 
+
+keepOrChangeDirection :: Direction -> Direction -> Direction
+keepOrChangeDirection current new
+  | current == oppositeDirection new = current
+  | otherwise = new
+
 moveTail :: [Node] -> Node -> [Node]
 moveTail [] _ = []
 moveTail (first:ys) targetNode = targetNode:(moveTail ys first)
@@ -161,11 +178,13 @@ updatePlay _ snake = moveSnake snake noDir
 
 handleKeys :: Event -> Snake -> Snake
 handleKeys (EventKey (SpecialKey key) _ _ _) (Snake h t v)
-  | key == KeyUp = Snake { snakeHead = Node { x = x h, y = y h, direction = topDir }, snakeTail = t, velocity = v}
-  | key == KeyRight = Snake { snakeHead = Node { x = x h, y = y h, direction = rightDir }, snakeTail = t, velocity = v }
-  | key == KeyDown = Snake { snakeHead = Node { x = x h, y = y h, direction = bottomDir }, snakeTail = t, velocity = v }
-  | key == KeyLeft = Snake { snakeHead = Node { x = x h, y = y h, direction = leftDir }, snakeTail = t, velocity = v }
+  | key == KeyUp = Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection topDir }, snakeTail = t, velocity = v}
+  | key == KeyRight = Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection rightDir }, snakeTail = t, velocity = v }
+  | key == KeyDown = Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection bottomDir }, snakeTail = t, velocity = v }
+  | key == KeyLeft = Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection leftDir }, snakeTail = t, velocity = v }
   | otherwise = Snake h t v
+  where
+    currentDirection = direction h
 handleKeys _ (Snake h t v) = Snake h t v
 
 main = do
@@ -173,4 +192,3 @@ main = do
   play window black 10 startingSnake renderGame handleKeys updatePlay
   where
     window = (InWindow "Snake Game" getScreenResolution (10, 10))
- 
