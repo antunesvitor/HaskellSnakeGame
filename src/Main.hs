@@ -22,6 +22,11 @@ bottomDir = 3
 leftDir :: Direction
 leftDir = 4
 
+data World = World {
+    theSnake :: Snake
+  , seed :: Node
+} deriving Show
+
 data Node = Node {
     x :: Int
   , y :: Int
@@ -57,7 +62,7 @@ constWallColor = white
 
 -- The snake velocity is the node distance plus the product of the block size and the number of blocks each step will take
 constVelocity :: Int
-constVelocity = (1 * constBlockSize)
+constVelocity = 5
 
 constResolution :: Resolution
 constResolution = Resolution 640 360
@@ -108,6 +113,17 @@ renderNode (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSnake
     intNodeY = fromIntegral nodeY
     floatBlockSize = fromIntegral constBlockSize
 
+startingWorld :: World
+startingWorld = World startingSnake initialSeed
+
+initialSeed :: Node
+initialSeed = Node (-50) (-50) noDir
+
+renderWorld :: World -> Picture
+renderWorld world = pictures [
+  walls, renderSnake $ theSnake world, renderNode $ seed world
+  ]
+
 startingSnake :: Snake
 startingSnake = Snake { snakeHead = startingHead, snakeTail = startingTail startingHead, velocity = constVelocity }
   where
@@ -129,6 +145,37 @@ addNode (Node nodeX nodeY direction')
   | direction' == rightDir = Node { x = nodeX + 10, y = nodeY, direction = direction' }
   | direction' == bottomDir = Node { x = nodeX, y = nodeY + 10, direction = direction' }
   | otherwise = Node { x = nodeX - 10, y = nodeY, direction = direction' }
+
+stepWorld :: World -> Direction -> World
+stepWorld world dir 
+  | hasCollided $ World movedSnake currentSeed = World newSnake $ newSeed currentSeed
+  | otherwise = World movedSnake $ seed world
+  where
+    movedSnake = moveSnake (theSnake world) dir
+    currentSeed = seed world
+    newSnake = insertNewNode movedSnake
+
+insertNewNode :: Snake -> Snake
+insertNewNode snake = Snake { snakeHead = snakeHead snake, snakeTail = incrementTail $ snakeTail snake, velocity = velocity snake }
+
+incrementTail :: [Node] -> [Node]
+incrementTail [] = []
+incrementTail [n] = [ n, addNode n ]
+incrementTail (n:ns) = n:(incrementTail ns)
+
+hasCollided :: World -> Bool
+hasCollided world = pythagoreanDistanceSquared <= radioSquared 
+  where 
+    xSnake = x $ snakeHead $ theSnake world 
+    ySnake = y $ snakeHead $ theSnake world 
+    xSeed = x $ seed world
+    ySeed = y $ seed world
+    square = 2
+    pythagoreanDistanceSquared = (xSnake - xSeed) ^ square + (ySnake - ySeed) ^ square
+    radioSquared = (constBlockSize `div` 2) ^ square
+
+newSeed :: Node -> Node
+newSeed oldSeed = Node (- x oldSeed) (- y oldSeed) noDir
 
 -- Given a snake model and a direction move snake one or more blocks in the direction
 moveSnake :: Snake -> Direction -> Snake
@@ -176,6 +223,9 @@ update _ _ snake = moveSnake snake topDir
 updatePlay :: Float -> Snake -> Snake
 updatePlay _ snake = moveSnake snake noDir
 
+updatePlayWorld :: Float -> World -> World
+updatePlayWorld _ world = stepWorld world noDir
+
 handleKeys :: Event -> Snake -> Snake
 handleKeys (EventKey (SpecialKey key) _ _ _) (Snake h t v)
   | key == KeyUp = Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection topDir }, snakeTail = t, velocity = v}
@@ -187,8 +237,22 @@ handleKeys (EventKey (SpecialKey key) _ _ _) (Snake h t v)
     currentDirection = direction h
 handleKeys _ (Snake h t v) = Snake h t v
 
+
+handleKeysWorld :: Event -> World -> World
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World (Snake h t v) s)
+  | key == KeyUp = World (Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection topDir }, snakeTail = t, velocity = v}) s
+  | key == KeyRight = World (Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection rightDir }, snakeTail = t, velocity = v }) s
+  | key == KeyDown = World (Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection bottomDir }, snakeTail = t, velocity = v }) s
+  | key == KeyLeft = World (Snake { snakeHead = Node { x = x h, y = y h, direction = keepOrChangeDirection currentDirection leftDir }, snakeTail = t, velocity = v }) s
+  | otherwise = World (Snake h t v) s
+  where
+    currentDirection = direction h
+handleKeysWorld _ (World (Snake h t v) s ) = World (Snake h t v) s
+
 main = do
+  -- display window black $ renderSnake startingSnake
   -- simulate window black 2 startingSnake renderGame update
-  play window black 10 startingSnake renderGame handleKeys updatePlay
+  -- play window black 60 startingSnake renderSnake handleKeys updatePlay
+  play window black 60 startingWorld renderWorld handleKeysWorld updatePlayWorld
   where
     window = (InWindow "Snake Game" getScreenResolution (10, 10))
