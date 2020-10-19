@@ -13,6 +13,14 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
+library
+  hs-source-dirs:   src
+  other-modules:
+    SnakeGameWorld
+  build-depends:       base >= 4.7 && < 5
+                    , gloss
+  default-language:    Haskell2010
+
 executable SnakeGame
   hs-source-dirs:      src
   main-is:             Main.hs

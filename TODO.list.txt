@@ -1,9 +1,17 @@
 * > Trocar a constResolution para um custom type com nome de width e height
-> Criar apropriadamente a constante thickness baseada na resolucao da tela 
+> [NÃO É MAIS NECESSÁRIO] Criar apropriadamente a constante thickness baseada na resolucao da tela
 *> substituir Position por Direction já que faz mais sentido
->  Simular o movimento da cobra
-    > adicionar atributo de velocidade a cobra (x e y serão iguais)
+*>  Simular o movimento da cobra
+    *> adicionar atributo de velocidade a cobra (x e y serão iguais)
     * > decidir se moverá por blocos (como se fosse um grid) ou por pixel
         |-> Deve ser por bloco, assim o movimento m
+*> fazer uma função que crie sempre paredes nas bordas da tela de maneira responsiva
+*> Impedir que a cobra se mova para o lado oposto do movimento atual
+    - A cobra não pode ir pra esquerda se já estiver indo para a direita, nem pode ir pra cima se estiver indo pra baixo, etc
+> Criar colisões
+    > colisão cobra-paredes
+    > colisão cobra-cobra
+> Modularizar o código na Lib ao invés de usar tudo na main
+> Ajustar o movimento inicial da cobra
+    |- Ela começa o seu movimento pulando uma etapa
 > Verificar se é melhor trocar o caso base de moveTail para um item ao contrário de vazio
-> fazer uma função que crie sempre paredes nas bordas da tela de maneira responsiva
