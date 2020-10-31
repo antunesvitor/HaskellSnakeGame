@@ -14,27 +14,19 @@ module SnakeGameWorld
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
 
-type Direction = Int
-
-noDir :: Direction
-noDir = 0
-
-topDir :: Direction
-topDir = 1
-
-rightDir :: Direction
-rightDir = 2
-
-bottomDir :: Direction
-bottomDir = 3
-
-leftDir :: Direction
-leftDir = 4
+data Direction = North | East | South | West | NoDir deriving (Eq, Show)
 
 data World = World {
     theSnake :: Snake
   , seed :: Node
 } deriving Show
+
+-- data Configuration = Configuration {
+--   resolution :: Resolution
+--  ,backgroundColor :: Color
+--  ,snakeColor :: Color
+
+-- }
 
 data Node = Node {
     x :: Int
@@ -63,7 +55,7 @@ constBlockSize = 10
 
 -- Constant that defines the snake color
 constSnakeColor :: Color
-constSnakeColor = blue
+constSnakeColor = black
 
 -- Constant that defines the snake color
 constSeedColor :: Color
@@ -71,14 +63,14 @@ constSeedColor = red
 
 -- Constant that defines the wall color
 constWallColor :: Color
-constWallColor = white
+constWallColor = black
 
 -- The snake velocity is the node distance plus the product of the block size and the number of blocks each step will take
 constVelocity :: Int
 constVelocity = 5
 
 constResolution :: Resolution
-constResolution = Resolution 640 360
+constResolution = Resolution 320 568
 
 verticalOffset :: Float
 verticalOffset = (fromIntegral $ height constResolution) / 2
@@ -126,7 +118,7 @@ startingWorld :: World
 startingWorld = World startingSnake initialSeed
 
 initialSeed :: Node
-initialSeed = Node (-50) (-50) noDir
+initialSeed = Node (-50) (-50) NoDir
 
 renderWorld :: World -> Picture
 renderWorld world = pictures [
@@ -136,7 +128,7 @@ renderWorld world = pictures [
 startingSnake :: Snake
 startingSnake = Snake { snakeHead = startingHead, snakeTail = startingTail startingHead, velocity = constVelocity }
   where
-    startingHead = Node { x = 0, y = 0, direction = topDir}
+    startingHead = Node { x = 0, y = 0, direction = North}
 
 startingTail :: Node -> [Node]
 startingTail startingHead = startingTail' startingHead 5 []
@@ -150,9 +142,9 @@ startingTail' startingHead remaining (n:ns) = startingTail' startingHead (remain
 
 addNode :: Node -> Node
 addNode (Node nodeX nodeY direction')
-  | direction' == topDir = Node { x = nodeX, y = nodeY - 10, direction = direction' }
-  | direction' == rightDir = Node { x = nodeX + 10, y = nodeY, direction = direction' }
-  | direction' == bottomDir = Node { x = nodeX, y = nodeY + 10, direction = direction' }
+  | direction' == North = Node { x = nodeX, y = nodeY - 10, direction = direction' }
+  | direction' == East = Node { x = nodeX + 10, y = nodeY, direction = direction' }
+  | direction' == South = Node { x = nodeX, y = nodeY + 10, direction = direction' }
   | otherwise = Node { x = nodeX - 10, y = nodeY, direction = direction' }
 
 stepWorld :: World -> Direction -> World
@@ -185,7 +177,7 @@ hasCollided world = pythagoreanDistanceSquared <= radioSquared
     radioSquared = (constBlockSize `div` 2) ^ square
 
 newSeed :: Node -> Node
-newSeed oldSeed = Node (- x oldSeed) (- y oldSeed) noDir
+newSeed oldSeed = Node (- x oldSeed) (- y oldSeed) NoDir
 
 -- Given a snake model and a direction move snake one or more blocks in the direction
 moveSnake :: Snake -> Direction -> Snake
@@ -197,26 +189,24 @@ moveSnake (Snake h t vel) dir = Snake newHead newTail vel
 
 -- moves a Node to a given direction in a given velocity (velocity = blocks)
 moveNode :: Node -> Int -> Direction -> Node
-moveNode (Node nodeX nodeY _) vel newDirection 
-  | newDirection == topDir = Node { x = nodeX, y = nodeY + vel, direction = topDir}
-  | newDirection == rightDir = Node { x = nodeX + vel, y = nodeY, direction = rightDir}
-  | newDirection == bottomDir = Node { x = nodeX, y = nodeY - vel, direction = bottomDir}
-  | otherwise  = Node { x = nodeX - vel, y = nodeY, direction = leftDir}
+moveNode _ _ NoDir = error "moveNode function needs to  have a valid direction"
+moveNode (Node nodeX nodeY _) vel North = Node { x = nodeX, y = nodeY + vel, direction = North}
+moveNode (Node nodeX nodeY _) vel East  = Node { x = nodeX + vel, y = nodeY, direction = East}
+moveNode (Node nodeX nodeY _) vel South = Node { x = nodeX, y = nodeY - vel, direction = South}
+moveNode (Node nodeX nodeY _) vel West  = Node { x = nodeX - vel, y = nodeY, direction = West }
 
 -- Verify if direction is null (noDir or 0) or a valid direction
 -- keeping the new current direction if null or changing if not
 evalDirection :: Direction -> Direction -> Direction
-evalDirection new current 
-  | new == noDir = current
-  | otherwise = new
+evalDirection NoDir current = current
+evalDirection new _ = new
 
 oppositeDirection :: Direction -> Direction
-oppositeDirection dir 
-  | dir == topDir = bottomDir
-  | dir == rightDir = leftDir
-  | dir == bottomDir = topDir
-  | dir == leftDir = rightDir
-  | otherwise = noDir 
+oppositeDirection North = South
+oppositeDirection East = West
+oppositeDirection South = North
+oppositeDirection West = East
+oppositeDirection NoDir = NoDir
 
 keepOrChangeDirection :: Direction -> Direction -> Direction
 keepOrChangeDirection current new
@@ -243,15 +233,15 @@ wallCollided (World (Snake h _ _) _) = bottomCollision || topCollision || rightC
     leftCollision = xHead < leftLimit
 
 updatePlayWorld :: Float -> World -> World
-updatePlayWorld _ world = stepWorld world noDir
+updatePlayWorld _ world = stepWorld world NoDir
 
 handleKeysWorld :: Event -> World -> World
 handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed')
-  | key == KeyUp =  buildWorld snake (keepOrChangeDirection currentDirection topDir) seed'
-  | key == KeyRight = buildWorld snake (keepOrChangeDirection currentDirection rightDir) seed'
-  | key == KeyDown = buildWorld snake (keepOrChangeDirection currentDirection bottomDir) seed'
-  | key == KeyLeft = buildWorld snake (keepOrChangeDirection currentDirection leftDir) seed'
-  | otherwise = buildWorld snake (keepOrChangeDirection currentDirection noDir) seed'
+  | key == KeyUp =  buildWorld snake (keepOrChangeDirection currentDirection North) seed'
+  | key == KeyRight = buildWorld snake (keepOrChangeDirection currentDirection East) seed'
+  | key == KeyDown = buildWorld snake (keepOrChangeDirection currentDirection South) seed'
+  | key == KeyLeft = buildWorld snake (keepOrChangeDirection currentDirection West) seed'
+  | otherwise = buildWorld snake (keepOrChangeDirection currentDirection NoDir) seed'
   where
     currentDirection = direction (snakeHead snake)
 handleKeysWorld _ (World (Snake h t v) s ) = World (Snake h t v) s
