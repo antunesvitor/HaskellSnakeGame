@@ -1,17 +1,36 @@
-* > Trocar a constResolution para um custom type com nome de width e height
-> [NÃO É MAIS NECESSÁRIO] Criar apropriadamente a constante thickness baseada na resolucao da tela
-*> substituir Position por Direction já que faz mais sentido
-*>  Simular o movimento da cobra
-    *> adicionar atributo de velocidade a cobra (x e y serão iguais)
-    * > decidir se moverá por blocos (como se fosse um grid) ou por pixel
-        |-> Deve ser por bloco, assim o movimento m
-*> fazer uma função que crie sempre paredes nas bordas da tela de maneira responsiva
-*> Impedir que a cobra se mova para o lado oposto do movimento atual
-    - A cobra não pode ir pra esquerda se já estiver indo para a direita, nem pode ir pra cima se estiver indo pra baixo, etc
-> Criar colisões
-    > colisão cobra-paredes
-    > colisão cobra-cobra
-> Modularizar o código na Lib ao invés de usar tudo na main
-> Ajustar o movimento inicial da cobra
-    |- Ela começa o seu movimento pulando uma etapa
-> Verificar se é melhor trocar o caso base de moveTail para um item ao contrário de vazio
+Objetivos:
+
+    [FEITO] > Trocar a constResolution para um custom type com nome de width e height
+    > [NÃO É MAIS NECESSÁRIO] Criar apropriadamente a constante thickness baseada na resolucao da tela
+    [FEITO] > substituir Position por Direction já que faz mais sentido
+    [FEITO] > Simular o movimento da cobra
+        [FEITO] > adicionar atributo de velocidade a cobra (x e y serão iguais)
+        [CHECAR #1] > decidir se moverá por blocos (como se fosse um grid) ou por pixel
+            |-> Deve ser por bloco, assim o movimento m
+    [FEITO] > fazer uma função que crie sempre paredes nas bordas da tela de maneira responsiva
+    [FEITO] > Impedir que a cobra se mova para o lado oposto do movimento atual
+        [FEITO] - A cobra não pode ir pra esquerda se já estiver indo para a direita, nem pode ir pra cima se estiver indo pra baixo, etc
+    [FEITO] > Criar colisões
+        [FEITO] > colisão cobra-paredes
+        [FEITO] > colisão cobra-cobra
+    > Modularizar o código na Lib ao invés de usar tudo na main
+        > Falta dividir os contrutores e as definições de datatypes em outro arquivo/modulo
+    [CHECAR #1][FEITO] Ajustar o movimento inicial da cobra
+        |- Ela começa o seu movimento pulando uma etapa
+    > Verificar se é melhor trocar o caso base de moveTail para um item ao contrário de vazio
+    [FEITO] > Trocar Direction de um label de Int para um novo tipo (usando data ao invés de type)
+    > Criar menu inicial e tela de Game Over
+        - menu inicial por enquanto será um start game
+        - game over será somente a msg de fim de jogo com restart
+    > Adicionar sistema de pontuação
+    
+    > Verde: #3F7707
+    > Bege: #FDF6E3 RGB(253, 246, 227)
+
+
+Anotações: 
+    [1] >[FEITO] URGENTE: refazer o movimento da cobra, se vai ser em bloco ou se vai ser por pixel e como fazer
+        Observações:
+        > por enquanto foi alterado para velocidade em blocos para não bugar a velocidade deve ser igual a distancia entre os dois blocos
+        > como assim está funcionando perfeitamente (sem bugs) vamos manter assim por enquanto, futuramente pode voltar a ser uma movimentação por pixels
+        > a movimentação por pixels é melhor pois é mais suave e fluida, agrada melhor ao jogador

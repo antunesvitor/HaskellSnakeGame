@@ -1,0 +1,37 @@
+-- moveTail (currentNode:stail) targetNode 
+--   | d1 == d2 = movedNode:(moveTail stail currentNode)
+--   | otherwise = evaluatedCurrentNode:(moveTail stail currentNode)
+--   where
+--     movedNode = moveNode currentNode constVelocity d1
+--     evaluatedCurrentNode = evalTailNodeMove currentNode targetNode
+--     d1 = direction currentNode
+--     d2 = direction targetNode
+
+-- evalPosition :: Int -> Int -> Int -> Int
+-- evalPosition pos vel target 
+--   | pos + vel > target = target
+--   | otherwise = pos + vel
+
+-- -- currentNode -> target -> moved currentNode
+-- evalTailNodeMove :: Node -> Node -> Node
+-- evalTailNodeMove (Node _ _ NoDir) _ = error "evalTailNodeMove must have a valid direction"
+-- evalTailNodeMove (Node x1 y1 North) (Node _ y' d')
+--   | newY < y' = moveNode (Node x1 y1 North) constVelocity North
+--   | otherwise = moveNode (Node x1 y' d') constVelocity d'
+--     where
+--       newY = evalPosition y1 constVelocity y'
+-- evalTailNodeMove (Node x1 y1 South) (Node _ y' d')
+--   | newY > y' = moveNode (Node x1 y1 South) constVelocity South
+--   | otherwise = moveNode (Node x1 y' d') constVelocity d'
+--   where
+--       newY = evalPosition y1 constVelocity y'
+-- evalTailNodeMove (Node x1 y1 East) (Node x' _ d')
+--   | newX < x' = moveNode (Node x1 y1 East) constVelocity East
+--   | otherwise = moveNode (Node x' y1 d') constVelocity d'
+--   where
+--       newX = evalPosition x1 constVelocity x'
+-- evalTailNodeMove (Node x1 y1 West) (Node x' _ d')
+--   | newX > x' = moveNode (Node x1 y1 West) constVelocity West
+--   | otherwise = moveNode (Node x' y1 d') constVelocity d'
+--   where
+--       newX = evalPosition x1 constVelocity x'

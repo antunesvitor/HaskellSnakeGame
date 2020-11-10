@@ -19,14 +19,10 @@ data Direction = North | East | South | West | NoDir deriving (Eq, Show)
 data World = World {
     theSnake :: Snake
   , seed :: Node
+  -- , gameOver :: Bool
+  -- , mainMenu :: Bool
+  -- , pause :: Bool
 } deriving Show
-
--- data Configuration = Configuration {
---   resolution :: Resolution
---  ,backgroundColor :: Color
---  ,snakeColor :: Color
-
--- }
 
 data Node = Node {
     x :: Int
@@ -46,8 +42,8 @@ data Resolution = Resolution {
 }
 
 -- The Number of the pixels that will separate a block from another
-constNodeDistance :: Int
-constNodeDistance = 1
+-- constNodeDistance :: Int
+-- constNodeDistance = 1
 
 -- Constant that defines the number of pixels a snake block will have
 constBlockSize :: Int
@@ -67,7 +63,7 @@ constWallColor = black
 
 -- The snake velocity is the node distance plus the product of the block size and the number of blocks each step will take
 constVelocity :: Int
-constVelocity = 5
+constVelocity = 10
 
 constResolution :: Resolution
 constResolution = Resolution 320 568
@@ -105,7 +101,7 @@ renderNode (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSnake
   where
     intNodeX = fromIntegral nodeX
     intNodeY = fromIntegral nodeY
-    floatBlockSize = fromIntegral constBlockSize
+    floatBlockSize = fromIntegral (constBlockSize - 1)
 
 renderSeed :: Node -> Picture
 renderSeed (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSeedColor $ rectangleSolid floatBlockSize floatBlockSize
@@ -136,24 +132,25 @@ startingTail startingHead = startingTail' startingHead 5 []
 startingTail' :: Node -> Int -> [Node] -> [Node]
 startingTail' _ 0 initialTail = initialTail
 startingTail' startingHead remaining [] = startingTail' startingHead (remaining - 1) [addNode startingHead]
-startingTail' startingHead remaining (n:ns) = startingTail' startingHead (remaining - 1) (newNode:n:ns)
+startingTail' startingHead remaining ns = startingTail' startingHead (remaining - 1) $ ns ++ [newNode]
   where
-    newNode = addNode n
+    newNode = addNode lastNode
+    lastNode = last ns
 
 addNode :: Node -> Node
-addNode (Node nodeX nodeY direction')
-  | direction' == North = Node { x = nodeX, y = nodeY - 10, direction = direction' }
-  | direction' == East = Node { x = nodeX + 10, y = nodeY, direction = direction' }
-  | direction' == South = Node { x = nodeX, y = nodeY + 10, direction = direction' }
-  | otherwise = Node { x = nodeX - 10, y = nodeY, direction = direction' }
+addNode (Node _ _ NoDir) = error "addNode must have a valid Direction"
+addNode (Node nodeX nodeY North) = Node { x = nodeX, y = nodeY - constBlockSize, direction = North }
+addNode (Node nodeX nodeY East) = Node { x = nodeX + constBlockSize, y = nodeY, direction = East }
+addNode (Node nodeX nodeY South) = Node { x = nodeX, y = nodeY + constBlockSize, direction = South }
+addNode (Node nodeX nodeY West) = Node { x = nodeX - constBlockSize, y = nodeY, direction = West }
 
-stepWorld :: World -> Direction -> World
-stepWorld world dir 
-  | hasCollided $ World movedSnake currentSeed = World newSnake $ newSeed currentSeed
-  | wallCollided $ World movedSnake currentSeed = startingWorld               -- Como não tem um "Game over" implementado ele simplesmente reseta
+stepWorld :: World ->  World
+stepWorld world 
+  | hasEated $ World movedSnake currentSeed = World newSnake $ newSeed currentSeed
+  | snakeCollided movedSnake || wallCollided (World movedSnake currentSeed) = startingWorld               -- Como não tem um "Game over" implementado ele simplesmente reseta
   | otherwise = World movedSnake $ seed world
   where
-    movedSnake = moveSnake (theSnake world) dir
+    movedSnake = moveSnake (theSnake world) 
     currentSeed = seed world
     newSnake = insertNewNode movedSnake
 
@@ -165,41 +162,37 @@ incrementTail [] = []
 incrementTail [n] = [ n, addNode n ]
 incrementTail (n:ns) = n:(incrementTail ns)
 
-hasCollided :: World -> Bool
-hasCollided world = pythagoreanDistanceSquared <= radioSquared 
+hasEated :: World -> Bool
+hasEated (World snake s1) = nodeCollided h s1
   where 
-    xSnake = x $ snakeHead $ theSnake world 
-    ySnake = y $ snakeHead $ theSnake world 
-    xSeed = x $ seed world
-    ySeed = y $ seed world
+    h = snakeHead snake
+
+nodeCollided :: Node -> Node -> Bool
+nodeCollided (Node x1 y1 _) (Node x2 y2 _) = pythagoreanDistanceSquared <= radioSquared
+  where
     square = 2
-    pythagoreanDistanceSquared = (xSnake - xSeed) ^ square + (ySnake - ySeed) ^ square
+    pythagoreanDistanceSquared = (x2 - x1) ^ square + (y2 - y1) ^ square
     radioSquared = (constBlockSize `div` 2) ^ square
+
 
 newSeed :: Node -> Node
 newSeed oldSeed = Node (- x oldSeed) (- y oldSeed) NoDir
 
 -- Given a snake model and a direction move snake one or more blocks in the direction
-moveSnake :: Snake -> Direction -> Snake
-moveSnake (Snake h t vel) dir = Snake newHead newTail vel
+moveSnake :: Snake ->  Snake
+moveSnake (Snake h t vel)  = Snake newHead newTail vel
   where 
     currentDir = direction h
-    newHead =  moveNode h vel $ evalDirection dir currentDir
+    newHead =  moveNode h vel currentDir
     newTail = moveTail t h
 
 -- moves a Node to a given direction in a given velocity (velocity = blocks)
 moveNode :: Node -> Int -> Direction -> Node
-moveNode _ _ NoDir = error "moveNode function needs to  have a valid direction"
+moveNode node _ NoDir = node
 moveNode (Node nodeX nodeY _) vel North = Node { x = nodeX, y = nodeY + vel, direction = North}
 moveNode (Node nodeX nodeY _) vel East  = Node { x = nodeX + vel, y = nodeY, direction = East}
 moveNode (Node nodeX nodeY _) vel South = Node { x = nodeX, y = nodeY - vel, direction = South}
 moveNode (Node nodeX nodeY _) vel West  = Node { x = nodeX - vel, y = nodeY, direction = West }
-
--- Verify if direction is null (noDir or 0) or a valid direction
--- keeping the new current direction if null or changing if not
-evalDirection :: Direction -> Direction -> Direction
-evalDirection NoDir current = current
-evalDirection new _ = new
 
 oppositeDirection :: Direction -> Direction
 oppositeDirection North = South
@@ -209,13 +202,14 @@ oppositeDirection West = East
 oppositeDirection NoDir = NoDir
 
 keepOrChangeDirection :: Direction -> Direction -> Direction
+keepOrChangeDirection current NoDir = current
 keepOrChangeDirection current new
   | current == oppositeDirection new = current
   | otherwise = new
 
 moveTail :: [Node] -> Node -> [Node]
 moveTail [] _ = []
-moveTail (first:ys) targetNode = targetNode:(moveTail ys first)
+moveTail (x':xs) targetNode = targetNode:(moveTail xs x')
 
 wallCollided :: World -> Bool
 wallCollided (World (Snake h _ _) _) = bottomCollision || topCollision || rightCollision || leftCollision
@@ -232,8 +226,18 @@ wallCollided (World (Snake h _ _) _) = bottomCollision || topCollision || rightC
     bottomCollision = yHead < bottomLimit
     leftCollision = xHead < leftLimit
 
+snakeCollided :: Snake -> Bool
+snakeCollided (Snake _ [] _) = False
+snakeCollided (Snake h ts _) = headIsOnTail h $ tail $ tail ts
+
+headIsOnTail :: Node -> [Node] -> Bool
+headIsOnTail _ [] = False
+headIsOnTail h (t:ts)  
+  | nodeCollided h t = True
+  | otherwise = headIsOnTail h ts
+
 updatePlayWorld :: Float -> World -> World
-updatePlayWorld _ world = stepWorld world NoDir
+updatePlayWorld _ world = stepWorld world 
 
 handleKeysWorld :: Event -> World -> World
 handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed')
