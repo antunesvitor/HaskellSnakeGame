@@ -16,7 +16,7 @@ extra-source-files:  README.md
 library
   hs-source-dirs:   Lib
   exposed-modules:
-    SnakeGameWorld
+    SnakeGameWorld, Letters
   build-depends:
     base >= 4.7 && < 5
     , gloss
