@@ -13,6 +13,7 @@ module SnakeGameWorld
   
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
+import Letters
 
 data Direction = North | East | South | West | NoDir deriving (Eq, Show)
 
@@ -118,15 +119,17 @@ initialSeed = Node (-50) (-50) NoDir
 
 renderWorld :: World -> Picture
 renderWorld world 
-  -- | gameState == Menu = renderMenu
+  | gameState == Menu = renderMenu
   | gameState == Gaming = pictures [ walls, renderSnake $ theSnake world, renderSeed $ seed world ]
   | otherwise = pictures [ walls, renderSnake $ theSnake world, renderSeed $ seed world ]
   where 
     gameState = state world
 
-
--- renderMenu :: Picture
--- renderMenu = pictures 
+renderMenu :: Picture
+renderMenu = pictures [title, subtitle]
+  where
+    title = translate (-100) 200 renderTitle
+    subtitle = translate (-90) (-100) $ scale 0.1 0.1 $ Text "pressione 'ENTER' para jogar"
 
 startingSnake :: Snake
 startingSnake = Snake { snakeHead = startingHead, snakeTail = startingTail startingHead, velocity = constVelocity }
@@ -155,8 +158,9 @@ stepWorld :: World ->  World
 stepWorld world 
   | hasEated $ World movedSnake currentSeed Gaming = World newSnake (newSeed currentSeed) Gaming
   | snakeCollided movedSnake || wallCollided (World movedSnake currentSeed Gaming) = startingWorld               -- Como não tem um "Game over" implementado ele simplesmente reseta
-  | otherwise = World movedSnake currentSeed Gaming
+  | otherwise = World movedSnake currentSeed state'
   where
+    state' = state world
     movedSnake = moveSnake (theSnake world) 
     currentSeed = seed world
     newSnake = insertNewNode movedSnake
@@ -246,8 +250,8 @@ headIsOnTail h (t:ts)
 updatePlayWorld :: Float -> World -> World
 updatePlayWorld _ world = stepWorld world 
 
-handleKeysWorld :: Event -> World -> World
-handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' _)
+handleKeysGaming :: SpecialKey -> World -> World
+handleKeysGaming key (World snake seed' _) 
   | key == KeyUp =  buildWorld snake (keepOrChangeDirection currentDirection North) seed' Gaming
   | key == KeyRight = buildWorld snake (keepOrChangeDirection currentDirection East) seed' Gaming
   | key == KeyDown = buildWorld snake (keepOrChangeDirection currentDirection South) seed' Gaming
@@ -255,4 +259,12 @@ handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' _)
   | otherwise = buildWorld snake (keepOrChangeDirection currentDirection NoDir) seed' Gaming
   where
     currentDirection = direction (snakeHead snake)
-handleKeysWorld _ (World (Snake h t v) s sta ) = World (Snake h t v) s sta
+
+handleKeysMenu :: SpecialKey -> World -> World
+handleKeysMenu KeyEnter (World snake seed' _) = World snake seed' Gaming
+handleKeysMenu _ world = world
+
+handleKeysWorld :: Event -> World -> World
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Gaming) = handleKeysGaming key (World snake seed' Gaming)
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Menu) = handleKeysMenu key (World snake seed' Menu)
+handleKeysWorld _ world = world
