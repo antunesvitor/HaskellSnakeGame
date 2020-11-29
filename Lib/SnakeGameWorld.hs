@@ -42,10 +42,6 @@ data Resolution = Resolution {
  , height :: Int
 }
 
--- The Number of the pixels that will separate a block from another
--- constNodeDistance :: Int
--- constNodeDistance = 1
-
 -- Constant that defines the number of pixels a snake block will have
 constBlockSize :: Int
 constBlockSize = 10
@@ -114,22 +110,34 @@ renderSeed (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSeedC
 startingWorld :: World
 startingWorld = World startingSnake initialSeed Menu
 
+gameOverWorld :: World
+gameOverWorld = World startingSnake initialSeed GameOver
+
 initialSeed :: Node
 initialSeed = Node (-50) (-50) NoDir
 
 renderWorld :: World -> Picture
 renderWorld world 
   | gameState == Menu = renderMenu
+  | gameState == GameOver = renderGameOver
   | gameState == Gaming = pictures [ walls, renderSnake $ theSnake world, renderSeed $ seed world ]
   | otherwise = pictures [ walls, renderSnake $ theSnake world, renderSeed $ seed world ]
   where 
     gameState = state world
 
 renderMenu :: Picture
-renderMenu = pictures [title, subtitle]
+renderMenu = pictures [title, subtitlePlay, subtitleExit]
   where
     title = translate (-100) 200 renderTitle
-    subtitle = translate (-90) (-100) $ scale 0.1 0.1 $ Text "pressione 'ENTER' para jogar"
+    subtitlePlay = translate (-125) (-100) $ scale 0.15 0.15 $ Text "pressione 'ENTER' para jogar"
+    subtitleExit = translate (-125) (-120) $ scale 0.15 0.15 $ Text "pressione 'Esc' para sair"
+
+renderGameOver :: Picture
+renderGameOver = pictures [title, subtitlePlay, subtitleExit]
+  where
+    title = translate (-100) 200 renderGameOverTitle
+    subtitlePlay = translate (-125) (-100) $ scale 0.15 0.15 $ Text "pressione 'ENTER' para jogar"
+    subtitleExit = translate (-125) (-120) $ scale 0.15 0.15 $ Text "pressione 'Esc' para sair"
 
 startingSnake :: Snake
 startingSnake = Snake { snakeHead = startingHead, snakeTail = startingTail startingHead, velocity = constVelocity }
@@ -155,9 +163,11 @@ addNode (Node nodeX nodeY South) = Node { x = nodeX, y = nodeY + constBlockSize,
 addNode (Node nodeX nodeY West) = Node { x = nodeX - constBlockSize, y = nodeY, direction = West }
 
 stepWorld :: World ->  World
+stepWorld (World snk s Menu) = World snk s Menu
+stepWorld (World snk s GameOver) = World snk s GameOver
 stepWorld world 
   | hasEated $ World movedSnake currentSeed Gaming = World newSnake (newSeed currentSeed) Gaming
-  | snakeCollided movedSnake || wallCollided (World movedSnake currentSeed Gaming) = startingWorld               -- Como não tem um "Game over" implementado ele simplesmente reseta
+  | snakeCollided movedSnake || wallCollided (World movedSnake currentSeed Gaming) = gameOverWorld               -- Como não tem um "Game over" implementado ele simplesmente reseta
   | otherwise = World movedSnake currentSeed state'
   where
     state' = state world
@@ -248,7 +258,7 @@ headIsOnTail h (t:ts)
   | otherwise = headIsOnTail h ts
 
 updatePlayWorld :: Float -> World -> World
-updatePlayWorld _ world = stepWorld world 
+updatePlayWorld _ = stepWorld 
 
 handleKeysGaming :: SpecialKey -> World -> World
 handleKeysGaming key (World snake seed' _) 
@@ -267,4 +277,5 @@ handleKeysMenu _ world = world
 handleKeysWorld :: Event -> World -> World
 handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Gaming) = handleKeysGaming key (World snake seed' Gaming)
 handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Menu) = handleKeysMenu key (World snake seed' Menu)
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' GameOver) = handleKeysMenu key (World snake seed' GameOver)
 handleKeysWorld _ world = world

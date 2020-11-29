@@ -8,6 +8,18 @@ data FontConfiguration = FontConfiguration {
     size :: Int
 }
 
+renderGameOverTitle :: Picture
+renderGameOverTitle = pictures [g,a,m,e1,o,v,e2,r]
+  where
+    g = translate 0 0 $ renderCharacter getGconfig
+    a = translate 37 0 $ renderCharacter getAconfig
+    m = translate 74 0 $ renderCharacter getMconfig
+    e1 = translate 111 0 $ renderCharacter getEconfig
+    o = translate 0 (-49) $ renderCharacter getOConfig
+    v = translate 37 (-49) $ renderCharacter getVconfig
+    e2 = translate 74 (-49) $ renderCharacter getEconfig
+    r = translate 111 (-49) $ renderCharacter getRConfig
+
 renderTitle :: Picture
 renderTitle = pictures [s,n,a,k,e,g,a2,m,e2]
   where
@@ -80,6 +92,24 @@ getMconfig = [linha1,linha2, linha3]
     linha1 = translate 12 (-16) whiteTrace
     linha2 = translate 24 (-16) whiteTrace    
     linha3 = translate 18 0 $ whiten $ rectangleSolid' 1 6
+
+getOConfig :: [Picture]
+getOConfig = [linha1]
+  where
+    linha1 = translate 18 (-12) $ whiten $ rectangleSolid' 1 24
+  
+getVconfig :: [Picture]
+getVconfig = [linha1, trianguloBorda]
+  where
+    linha1 = translate 18 0 $ whiten $ rectangleSolid' 1 36
+    trianguloBorda = whiten $ Polygon [(30,-48), (36, -42), (36, -48)]
+
+getRConfig :: [Picture]
+getRConfig = [linha1, linha2, linha3]
+  where
+    linha1 = translate 12 (-35) $ whiten $ rectangleSolid' 1 13
+    linha2 = translate 24 (-26) $ whiten $ rectangleSolid' 12 1
+    linha3 = translate 12 (-12) $ whiten $ rectangleSolid' 13 1
 
 whiten :: (Picture -> Picture)
 whiten = color white
