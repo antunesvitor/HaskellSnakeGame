@@ -1,10 +1,14 @@
 module SnakeGameWorld
   (
-    Direction
-  , Resolution
+    Direction(..)
+  , Resolution(Resolution)
   , World
+  , Node(..)
+  , width
+  , height
   , startingWorld
   , renderWorld
+  , renderNode
   , updatePlayWorld
   , handleKeysWorld
   , horizontalOffset
@@ -14,6 +18,9 @@ module SnakeGameWorld
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
 import Letters
+import System.Random
+
+
 
 data Direction = North | East | South | West | NoDir deriving (Eq, Show)
 
@@ -23,6 +30,7 @@ data World = World {
     theSnake :: Snake
   , seed :: Node
   , state :: GameState
+  , randomnessSeed :: Int
 } deriving Show
 
 data Node = Node {
@@ -71,8 +79,8 @@ verticalOffset = (fromIntegral $ height constResolution) / 2
 horizontalOffset :: Float
 horizontalOffset = (fromIntegral $ width constResolution) / 2
 
-buildWorld :: Snake -> Direction -> Node -> GameState -> World
-buildWorld (Snake h t v) dir seed' sta = World { theSnake = Snake { snakeHead = Node { x = x h, y = y h, direction = dir}, snakeTail = t, velocity = v}, seed = seed', state = sta}
+buildWorld :: Snake -> Direction -> Node -> GameState -> Int -> World
+buildWorld (Snake h t v) dir seed' sta gen = World { theSnake = Snake { snakeHead = Node { x = x h, y = y h, direction = dir}, snakeTail = t, velocity = v}, seed = seed', state = sta, randomnessSeed = gen} 
 
 walls :: Picture
 walls = pictures [
@@ -89,10 +97,33 @@ walls = pictures [
     rightWall = translate horizontalOffset 0 $ color constWallColor $ verticalWall
 
 renderSnake :: Snake -> Picture
-renderSnake snake = pictures $ renderNode (snakeHead snake) : renderedTail
+renderSnake snake = pictures $ (renderSnakeHead $ snakeHead snake) : renderedTail
   where
     renderedTail = map renderNode $ snakeTail snake
 
+renderSnakeHead :: Node -> Picture
+renderSnakeHead (Node x' y' dir) = translate intx inty $ renderSnakeHead' dir
+  where 
+    intx = fromIntegral x'
+    inty = fromIntegral y'
+
+renderSnakeHead' :: Direction -> Picture
+renderSnakeHead' North = rotate 270 $ translate (-5) (5) $ pictures [headShape, eyes]
+renderSnakeHead' East = translate (-5) (5) $ pictures [headShape, eyes]
+renderSnakeHead' South = rotate 90 $ translate (-5) (5) $ pictures [headShape, eyes]
+renderSnakeHead' West = rotate 180 $ translate (-5) (5) $ pictures [headShape, eyes]
+renderSnakeHead' NoDir = error "A cabeça da cobra deve ter uma direação"
+
+headShape :: Picture
+headShape = Polygon [(0,0),(6,0), (7,-1), (8,-2),(9,-3),(10,-4),(10,-6),(9,-7),(8,-8),(7,-9),(6,-10), (0,-10)]
+
+eyes :: Picture
+eyes = pictures[eye1, eye2]
+  where
+    eye1 = color red $ translate 3 (-3) $ rectangleSolid 1 1
+    eye2 =  color red $ translate 3 (-7) $ rectangleSolid 1 1
+
+    
 renderNode :: Node -> Picture
 renderNode (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSnakeColor $ rectangleSolid floatBlockSize floatBlockSize
   where
@@ -107,21 +138,30 @@ renderSeed (Node nodeX nodeY _) = translate intNodeX intNodeY $ color constSeedC
     intNodeY = fromIntegral nodeY
     floatBlockSize = fromIntegral constBlockSize
 
-startingWorld :: World
-startingWorld = World startingSnake initialSeed Menu
+startingWorld :: Int -> World
+startingWorld gen = World startingSnake (newRandomSeed gen) Menu (gen + 1)
 
-gameOverWorld :: World
-gameOverWorld = World startingSnake initialSeed GameOver
+gameOverWorld :: Int -> World
+gameOverWorld gen = World startingSnake (newRandomSeed gen) GameOver (gen + 1)
 
-initialSeed :: Node
-initialSeed = Node (-50) (-50) NoDir
+newRandomSeed :: Int -> Node
+newRandomSeed gen = Node x' y' NoDir
+  where
+    offsetDoBomSenso = 10                                               -- pra evitar que a semente fique muito perto da borda
+    horizontalOffsetINT = round horizontalOffset - offsetDoBomSenso
+    verticalOffsetINT = round verticalOffset - offsetDoBomSenso 
+    (x', gen2) = randomR (-horizontalOffsetINT, horizontalOffsetINT) $ newGen gen
+    (y', _) = randomR (-verticalOffsetINT, verticalOffsetINT) gen2
+
+newGen :: Int -> StdGen
+newGen = mkStdGen
 
 renderWorld :: World -> Picture
 renderWorld world 
   | gameState == Menu = renderMenu
   | gameState == GameOver = renderGameOver
-  | gameState == Gaming = pictures [ walls, renderSnake $ theSnake world, renderSeed $ seed world ]
-  | otherwise = pictures [ walls, renderSnake $ theSnake world, renderSeed $ seed world ]
+  | gameState == Gaming = pictures [walls, renderSnake $ theSnake world, renderSeed $ seed world]
+  | otherwise = pictures [walls, renderSnake $ theSnake world, renderSeed $ seed world]
   where 
     gameState = state world
 
@@ -163,17 +203,19 @@ addNode (Node nodeX nodeY South) = Node { x = nodeX, y = nodeY + constBlockSize,
 addNode (Node nodeX nodeY West) = Node { x = nodeX - constBlockSize, y = nodeY, direction = West }
 
 stepWorld :: World ->  World
-stepWorld (World snk s Menu) = World snk s Menu
-stepWorld (World snk s GameOver) = World snk s GameOver
+stepWorld (World snk s Menu gen) = World snk s Menu gen
+stepWorld (World snk s GameOver gen) = World snk s GameOver gen
 stepWorld world 
-  | hasEated $ World movedSnake currentSeed Gaming = World newSnake (newSeed currentSeed) Gaming
-  | snakeCollided movedSnake || wallCollided (World movedSnake currentSeed Gaming) = gameOverWorld               -- Como não tem um "Game over" implementado ele simplesmente reseta
-  | otherwise = World movedSnake currentSeed state'
+  | hasEated movedSnake currentSeed = World newSnake (newRandomSeed (gen + 1)) Gaming gen
+  | snakeCollided movedSnake || wallCollided snakeHead' = gameOverWorld gen               -- Como não tem um "Game over" implementado ele simplesmente reseta
+  | otherwise = World movedSnake currentSeed state' (gen + 1)
   where
     state' = state world
     movedSnake = moveSnake (theSnake world) 
     currentSeed = seed world
     newSnake = insertNewNode movedSnake
+    gen = randomnessSeed world
+    snakeHead' = snakeHead movedSnake 
 
 insertNewNode :: Snake -> Snake
 insertNewNode snake = Snake { snakeHead = snakeHead snake, snakeTail = incrementTail $ snakeTail snake, velocity = velocity snake }
@@ -181,23 +223,18 @@ insertNewNode snake = Snake { snakeHead = snakeHead snake, snakeTail = increment
 incrementTail :: [Node] -> [Node]
 incrementTail [] = []
 incrementTail [n] = [ n, addNode n ]
-incrementTail (n:ns) = n:(incrementTail ns)
+incrementTail (n:ns) = n:incrementTail ns
 
-hasEated :: World -> Bool
-hasEated (World snake s1 _) = nodeCollided h s1
+hasEated :: Snake -> Node -> Bool
+hasEated snake s1 = nodeCollided h s1
   where 
     h = snakeHead snake
 
 nodeCollided :: Node -> Node -> Bool
-nodeCollided (Node x1 y1 _) (Node x2 y2 _) = pythagoreanDistanceSquared <= radioSquared
+nodeCollided (Node x1 y1 _) (Node x2 y2 _) = pythagoreanDistanceSquared < constBlockSize ^ 2
   where
     square = 2
     pythagoreanDistanceSquared = (x2 - x1) ^ square + (y2 - y1) ^ square
-    radioSquared = (constBlockSize `div` 2) ^ square
-
-
-newSeed :: Node -> Node
-newSeed oldSeed = Node (- x oldSeed) (- y oldSeed) NoDir
 
 -- Given a snake model and a direction move snake one or more blocks in the direction
 moveSnake :: Snake ->  Snake
@@ -232,11 +269,11 @@ moveTail :: [Node] -> Node -> [Node]
 moveTail [] _ = []
 moveTail (x':xs) targetNode = targetNode:(moveTail xs x')
 
-wallCollided :: World -> Bool
-wallCollided (World (Snake h _ _) _ _) = bottomCollision || topCollision || rightCollision || leftCollision
+wallCollided :: Node -> Bool
+wallCollided snakeHead'  = bottomCollision || topCollision || rightCollision || leftCollision
   where
-    xHead = fromIntegral $ x h
-    yHead = fromIntegral $ y h 
+    xHead = fromIntegral $ x snakeHead'
+    yHead = fromIntegral $ y snakeHead'
     blockColisionRange = fromIntegral $ constBlockSize `div` 2
     topLimit = verticalOffset - blockColisionRange
     rightLimit = horizontalOffset - blockColisionRange
@@ -261,21 +298,21 @@ updatePlayWorld :: Float -> World -> World
 updatePlayWorld _ = stepWorld 
 
 handleKeysGaming :: SpecialKey -> World -> World
-handleKeysGaming key (World snake seed' _) 
-  | key == KeyUp =  buildWorld snake (keepOrChangeDirection currentDirection North) seed' Gaming
-  | key == KeyRight = buildWorld snake (keepOrChangeDirection currentDirection East) seed' Gaming
-  | key == KeyDown = buildWorld snake (keepOrChangeDirection currentDirection South) seed' Gaming
-  | key == KeyLeft = buildWorld snake (keepOrChangeDirection currentDirection West) seed' Gaming
-  | otherwise = buildWorld snake (keepOrChangeDirection currentDirection NoDir) seed' Gaming
+handleKeysGaming key (World snake seed' _ gen) 
+  | key == KeyUp =  buildWorld snake (keepOrChangeDirection currentDirection North) seed' Gaming (gen - 5)
+  | key == KeyRight = buildWorld snake (keepOrChangeDirection currentDirection East) seed' Gaming (gen - 5)
+  | key == KeyDown = buildWorld snake (keepOrChangeDirection currentDirection South) seed' Gaming (gen - 5)
+  | key == KeyLeft = buildWorld snake (keepOrChangeDirection currentDirection West) seed' Gaming (gen -5)
+  | otherwise = buildWorld snake (keepOrChangeDirection currentDirection NoDir) seed' Gaming (gen - 5)
   where
     currentDirection = direction (snakeHead snake)
 
 handleKeysMenu :: SpecialKey -> World -> World
-handleKeysMenu KeyEnter (World snake seed' _) = World snake seed' Gaming
+handleKeysMenu KeyEnter (World snake seed' _ gen) = World snake seed' Gaming gen
 handleKeysMenu _ world = world
 
 handleKeysWorld :: Event -> World -> World
-handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Gaming) = handleKeysGaming key (World snake seed' Gaming)
-handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Menu) = handleKeysMenu key (World snake seed' Menu)
-handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' GameOver) = handleKeysMenu key (World snake seed' GameOver)
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Gaming gen) = handleKeysGaming key (World snake seed' Gaming gen)
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' Menu gen) = handleKeysMenu key (World snake seed' Menu gen)
+handleKeysWorld (EventKey (SpecialKey key) _ _ _) (World snake seed' GameOver gen) = handleKeysMenu key (World snake seed' GameOver gen)
 handleKeysWorld _ world = world

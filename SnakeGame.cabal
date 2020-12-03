@@ -20,6 +20,7 @@ library
   build-depends:
     base >= 4.7 && < 5
     , gloss
+    , random 
   default-language:    Haskell2010
 
 executable SnakeGame
@@ -29,4 +30,5 @@ executable SnakeGame
   build-depends:       base >= 4.7 && < 5
                      , gloss
                      , SnakeGame
+                     , random
   ghc-options:        -O2 -Wall
